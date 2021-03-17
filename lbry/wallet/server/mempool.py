@@ -222,10 +222,14 @@ class MemPool:
             async with self.lock:
                 new_hashes = hashes.difference(self.notified_mempool_txs)
                 touched = await self._process_mempool(hashes)
-                self.notified_mempool_txs.update(new_hashes)
-                new_touched = {
-                    touched_hashx for touched_hashx, txs in self.hashXs.items() if txs.intersection(new_hashes)
-                }
+                new_touched = set()
+                for touched_hashx, txs in self.hashXs.items():
+                    if touched_hashx not in touched:
+                        continue
+                    new_txs = txs.intersection(new_hashes)
+                    if new_txs:
+                        self.notified_mempool_txs.update(new_txs)
+                        new_touched.add(touched_hashx)
             synchronized_event.set()
             synchronized_event.clear()
             await self.api.on_mempool(touched, new_touched, height)
